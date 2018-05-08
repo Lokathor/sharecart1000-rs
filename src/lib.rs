@@ -35,12 +35,14 @@ pub struct Sharecart {
 
   /// The player's name, or something like it.
   ///
-  /// The definition of "1023chars" is slightly fuzzy, so only the first 1023
-  /// _bytes_ will be used when saving the data. The bytes are then re-parsed
-  /// (to ensure valid utf-8, so that we can always parse our own output,
-  /// discarding any partial byte sequences at the end), and any `'\r'` or
-  /// `'\n'` characters are skipped over (because the `ini` file format splits
-  /// the key/value pairs with newlines).
+  /// The definition of "1023chars" is slightly fuzzy. Rust easily handles the
+  /// parsing of multi-byte characters (if they're utf-8 of course), but many
+  /// languages do not. So, only the first 1023 _bytes_ from this will be used
+  /// when saving the data. The bytes are then re-parsed (to ensure valid utf-8,
+  /// so that we can always parse our own output, discarding any partial byte
+  /// sequences at the end), and any `'\r'` or `'\n'` characters are skipped
+  /// over (because the `ini` file format splits the key/value pairs with
+  /// newlines).
   pub player_name: String,
 
   /// The eight switches.
