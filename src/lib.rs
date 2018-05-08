@@ -17,51 +17,56 @@ extern crate ini;
 pub struct Sharecart {
   /// This should be 0-1023 (10 bits).
   ///
-  /// The high bits are ignored when loading or saving the data. Anything that
-  /// can't be parsed as a `u16` during loading gives a 0.
+  /// * Saving: Ignores the high bits (eg: `cart.map_x % 1024`)
+  /// * Loading: Attempts to parse a `u16` (0 on failure) and then truncates to
+  ///   10 bits.
   pub map_x: u16,
 
   /// This should be 0-1023 (10 bits).
   ///
-  /// The high bits are ignored when loading or saving the data. Anything that
-  /// can't be parsed as a `u16` during loading gives a 0.
+  /// * Saving: Ignores the high bits (eg: `cart.map_y % 1024`)
+  /// * Loading: Attempts to parse a `u16` (0 on failure) and then truncates to
+  ///   10 bits.
   pub map_y: u16,
 
   /// Misc data.
   ///
-  /// Each of these can be any `u16` bit pattern at all. Anything that can't be
-  /// parsed as a `u16` during loading gives a 0.
+  /// * Saving: The full range is supported
+  /// * Loading: Attempts to parse a `u16`, 0 on failure.
   pub misc: [u16; 4],
 
   /// The player's name, or something like it.
   ///
-  /// The definition of "1023chars" is slightly fuzzy. Rust easily handles the
-  /// parsing of multi-byte characters (if they're utf-8 of course), but many
-  /// languages do not. So, only the first 1023 _bytes_ from this will be used
-  /// when saving the data. The bytes are then re-parsed (to ensure valid utf-8,
-  /// so that we can always parse our own output, discarding any partial byte
-  /// sequences at the end), and any `'\r'` or `'\n'` characters are skipped
-  /// over (because the `ini` file format splits the key/value pairs with
-  /// newlines).
+  /// The definition of "1023chars" is slightly fuzzy when you get into the fact
+  /// that there's multi-byte characters, but that some languages assume all
+  /// chars are 1 byte. While we're working with it in memory, we just act like
+  /// it's a normal `String` value. If you're just using this field for 1,023 or
+  /// fewer ASCII characters (without line endings), you'll be totally fine.
+  /// Otherwise there's some edge cases to worry about.
+  ///
+  /// * Saving: Takes the first 1023 _bytes_, then lossy re-parses the bytes as
+  ///   chars and filters out any `'\u{0FFFD}'`, `'\r'`, and `'\n'`.
+  /// * Loading: Performs a similar contortion, where the first 1023 bytes are
+  ///   taken, lossy parsed for utf8, filtered, and then that result is kept.
   pub player_name: String,
 
   /// The eight switches.
   ///
-  /// When parsing, "TRUE", "True", and "true" are all accepted as `true`, with
-  /// any other value being `false`. When saving, the value is always given as
-  /// "TRUE".
+  /// * Saving: Always outputs as "TRUE" or "FALSE".
+  /// * Loading: Ignores case, so that "True" and "TrUe" and such are also
+  ///   allowed as `true`. Any value that isn't read as `true` becomes `false`.
   pub switch: [bool; 8],
 }
 
 impl Sharecart {
   /// Parses the string given into a `Sharecart` value.
   ///
-  /// If the parsing works at all, then you'll get a `Sharecart` of some sort
-  /// back. If any individual field is missing, then you'll get the `Default`
-  /// value in that field. If the "[Main]" section is missing then you'll get
-  /// the default value in every field.
-  ///
-  /// If the parsing fails you'll get an error message about that instead.
+  /// You will always get a `Sharecart` of some sort back. If any individual
+  /// field is missing, then you'll get the `Default` value in that field. If
+  /// the "[Main]" section is missing then you'll get the default value in every
+  /// field. If the string somehow can't even be parsed at all then you'll get
+  /// the default value in every field. Field names ignore capitalization
+  /// differences.
   ///
   /// ```rust
   /// use sharecart1000::Sharecart;
@@ -86,72 +91,74 @@ impl Sharecart {
   ///   sc.switch[i] = foo;
   ///   foo = !foo;
   /// }
-  ///
   /// assert_eq!(sc, Sharecart::from_str(sc.to_string()).unwrap());
   /// ```
-  pub fn from_str<S: AsRef<str>>(buf: S) -> Result<Self, String> {
+  pub fn from_str<S: AsRef<str>>(buf: S) -> Self {
     let buf_str = buf.as_ref();
-    let true_enough = |v: &str| v == "TRUE" || v == "True" || v == "true";
     match ini::Ini::load_from_str(buf_str) {
-      Err(ini::ini::Error { msg, .. }) => Err(msg),
       Ok(i) => match i.section(Some("Main")).or(i.section(Some("main"))) {
         Some(properties) => {
           let mut sc = Sharecart::default();
           for (k, v) in properties.iter() {
-            let k: &str = k.as_ref();
-            match k {
-              "MapX" => {
+            let lower = k.to_lowercase();
+            match lower.as_ref() {
+              "mapx" => {
                 sc.map_x = v.parse::<u16>().unwrap_or(0) % 1024;
               }
-              "MapY" => {
+              "mapy" => {
                 sc.map_y = v.parse::<u16>().unwrap_or(0) % 1024;
               }
-              "Misc0" => {
+              "misc0" => {
                 sc.misc[0] = v.parse::<u16>().unwrap_or(0);
               }
-              "Misc1" => {
+              "misc1" => {
                 sc.misc[1] = v.parse::<u16>().unwrap_or(0);
               }
-              "Misc2" => {
+              "misc2" => {
                 sc.misc[2] = v.parse::<u16>().unwrap_or(0);
               }
-              "Misc3" => {
+              "misc3" => {
                 sc.misc[3] = v.parse::<u16>().unwrap_or(0);
               }
-              "PlayerName" => {
-                sc.player_name = v.to_string();
+              "playername" => {
+                let byte_vec: Vec<u8> = v.bytes().take(1024).collect();
+                sc.player_name = String::from_utf8_lossy(&byte_vec)
+                  .chars()
+                  .filter(|&c| c != '\u{0FFFD}' && c != '\r' && c != '\n')
+                  .collect();
               }
-              "Switch0" => {
-                sc.switch[0] = true_enough(v);
+              "switch0" => {
+                sc.switch[0] = v.to_lowercase() == "true";
               }
-              "Switch1" => {
-                sc.switch[1] = true_enough(v);
+              "switch1" => {
+                sc.switch[1] = v.to_lowercase() == "true";
               }
-              "Switch2" => {
-                sc.switch[2] = true_enough(v);
+              "switch2" => {
+                sc.switch[2] = v.to_lowercase() == "true";
               }
-              "Switch3" => {
-                sc.switch[3] = true_enough(v);
+              "switch3" => {
+                sc.switch[3] = v.to_lowercase() == "true";
               }
-              "Switch4" => {
-                sc.switch[4] = true_enough(v);
+              "switch4" => {
+                sc.switch[4] = v.to_lowercase() == "true";
               }
-              "Switch5" => {
-                sc.switch[5] = true_enough(v);
+              "switch5" => {
+                sc.switch[5] = v.to_lowercase() == "true";
               }
-              "Switch6" => {
-                sc.switch[6] = true_enough(v);
+              "switch6" => {
+                sc.switch[6] = v.to_lowercase() == "true";
               }
-              "Switch7" => {
-                sc.switch[7] = true_enough(v);
+              "switch7" => {
+                sc.switch[7] = v.to_lowercase() == "true";
               }
               _ => {}
             }
           }
-          Ok(sc)
+          sc
         }
-        None => Ok(Sharecart::default()),
+        None => Sharecart::default(),
       },
+      Err(_) => Sharecart::default(),
     }
   }
 
@@ -159,7 +166,9 @@ impl Sharecart {
   ///
   /// The string includes the "[Main]" section tag and other proper `ini`
   /// formatting, so that you can completely replace the current `o_o.ini`
-  /// contents with this new string when saving the game.
+  /// contents with this new string when saving the game. Lines are always
+  /// separated by just `'\n'`, which is is the most cross-platform way to
+  /// handle line-endings while also being consistent.
   ///
   /// ```rust
   /// use sharecart1000::Sharecart;
