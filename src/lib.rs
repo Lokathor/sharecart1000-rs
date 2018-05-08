@@ -45,7 +45,7 @@ pub struct Sharecart {
 impl Sharecart {
   /// Parses the string given into a `Sharecart` value.
   ///
-  /// If the parsing works at all, then you'll get a Sharecart of some sort
+  /// If the parsing works at all, then you'll get a `Sharecart` of some sort
   /// back. If any individual field is missing, then you'll get the `Default`
   /// value in that field. If the "[Main]" section is missing then you'll get
   /// the default value in every field.
