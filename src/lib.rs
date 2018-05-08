@@ -17,28 +17,37 @@ extern crate ini;
 pub struct Sharecart {
   /// This should be 0-1023 (10 bits).
   ///
-  /// The high bits are ignored when saving the data.
+  /// The high bits are ignored when loading or saving the data. Anything that
+  /// can't be parsed as a `u16` during loading gives a 0.
   pub map_x: u16,
 
   /// This should be 0-1023 (10 bits).
   ///
-  /// The high bits are ignored when saving the data.
+  /// The high bits are ignored when loading or saving the data. Anything that
+  /// can't be parsed as a `u16` during loading gives a 0.
   pub map_y: u16,
 
   /// Misc data.
   ///
-  /// Each of these can be any bit pattern at all.
+  /// Each of these can be any `u16` bit pattern at all. Anything that can't be
+  /// parsed as a `u16` during loading gives a 0.
   pub misc: [u16; 4],
 
   /// The player's name, or something like it.
   ///
-  /// When saving, any `\r` and `\n` characters are filtered away, and also only
-  /// the first 1023 _bytes_ are preserved. If this results in a partial byte
-  /// sequence at the end of the string it will also be stripped (so that the
-  /// results are always valid utf-8).
+  /// The definition of "1023chars" is slightly fuzzy, so only the first 1023
+  /// _bytes_ will be used when saving the data. The bytes are then re-parsed
+  /// (to ensure valid utf-8, so that we can always parse our own output,
+  /// discarding any partial byte sequences at the end), and any `'\r'` or
+  /// `'\n'` characters are skipped over (because the `ini` file format splits
+  /// the key/value pairs with newlines).
   pub player_name: String,
 
   /// The eight switches.
+  ///
+  /// When parsing, "TRUE", "True", and "true" are all accepted as `true`, with
+  /// any other value being `false`. When saving, the value is always given as
+  /// "TRUE".
   pub switch: [bool; 8],
 }
 
@@ -182,9 +191,9 @@ impl Sharecart {
       s.push_str(&format!("Misc{}={}\n", i, self.misc[i]));
     }
     s.push_str("PlayerName=");
-    let byte_vec: Vec<u8> = self.player_name.bytes().filter(|&b| b != b'\r' && b != b'\n').take(1023).collect();
+    let byte_vec: Vec<u8> = self.player_name.bytes().take(1023).collect();
     for ch in String::from_utf8_lossy(&byte_vec).chars() {
-      if ch == '�' {
+      if ch == '�' || ch == '\r' || ch == '\n' {
         continue;
       }
       s.push(ch);
