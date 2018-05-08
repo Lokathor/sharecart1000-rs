@@ -4,7 +4,7 @@ version = "1.0.0-pre"
 authors = ["Lokathor <zefria@gmail.com>"]
 repository = "https://github.com/Lokathor/sharecart1000-rs"
 readme = "README.md"
-keywords = ["retro","bitmap"]
+keywords = ["sharecart", "sharecart1000"]
 description = "For use with the Sharecart1000 system."
 license = "CC0-1.0"
 
