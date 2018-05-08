@@ -72,14 +72,14 @@ impl Sharecart {
   /// use sharecart1000::Sharecart;
   ///
   /// let mut sc = Sharecart::default();
-  /// assert_eq!(sc, Sharecart::from_str("").unwrap());
-  /// assert_eq!(sc, Sharecart::from_str("[Main]").unwrap());
+  /// assert_eq!(sc, Sharecart::from_str(""));
+  /// assert_eq!(sc, Sharecart::from_str("[Main]"));
   ///
   /// sc.map_x = 73;
   /// sc.map_y = 1023;
   /// assert_eq!(sc, Sharecart::from_str(r#"[Main]
   /// MapX=73
-  /// MapY=1023"#).unwrap());
+  /// MapY=1023"#));
   ///
   /// sc.misc[0] = 54;
   /// sc.misc[1] = 540;
@@ -91,7 +91,7 @@ impl Sharecart {
   ///   sc.switch[i] = foo;
   ///   foo = !foo;
   /// }
-  /// assert_eq!(sc, Sharecart::from_str(sc.to_string()).unwrap());
+  /// assert_eq!(sc, Sharecart::from_str(sc.to_string()));
   /// ```
   pub fn from_str<S: AsRef<str>>(buf: S) -> Self {
     let buf_str = buf.as_ref();
@@ -227,7 +227,7 @@ fn test_sharecart_10bit_safe() {
     sc.map_y |= 1 << bit;
   }
 
-  assert_eq!(Sharecart::default(), Sharecart::from_str(sc.to_string()).unwrap());
+  assert_eq!(Sharecart::default(), Sharecart::from_str(sc.to_string()));
 }
 
 #[test]
@@ -235,9 +235,9 @@ fn test_sharecart_player_name_safe() {
   let mut sc = Sharecart::default();
 
   sc.player_name = "\r\n".to_string();
-  assert_eq!(Sharecart::default(), Sharecart::from_str(sc.to_string()).unwrap());
+  assert_eq!(Sharecart::default(), Sharecart::from_str(sc.to_string()));
 
   sc.player_name = "x".repeat(2_000);
-  let round_trip = Sharecart::from_str(sc.to_string()).unwrap();
+  let round_trip = Sharecart::from_str(sc.to_string());
   assert_eq!(round_trip.player_name.len(), 1023);
 }
