@@ -193,7 +193,7 @@ impl Sharecart {
     s.push_str("PlayerName=");
     let byte_vec: Vec<u8> = self.player_name.bytes().take(1023).collect();
     for ch in String::from_utf8_lossy(&byte_vec).chars() {
-      if ch == '�' || ch == '\r' || ch == '\n' {
+      if ch == '\u{0FFFD}' || ch == '\r' || ch == '\n' {
         continue;
       }
       s.push(ch);
