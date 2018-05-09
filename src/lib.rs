@@ -18,21 +18,21 @@ pub struct Sharecart {
   /// This should be 0-1023 (10 bits).
   ///
   /// * Saving: Ignores the high bits (eg: `cart.map_x % 1024`)
-  /// * Loading: Attempts to parse a `u16` (0 on failure) and then truncates to
+  /// * Loading: Attempts to parse a `u16` (0 on failure), and then truncates to
   ///   10 bits.
   pub map_x: u16,
 
   /// This should be 0-1023 (10 bits).
   ///
   /// * Saving: Ignores the high bits (eg: `cart.map_y % 1024`)
-  /// * Loading: Attempts to parse a `u16` (0 on failure) and then truncates to
+  /// * Loading: Attempts to parse a `u16` (0 on failure), and then truncates to
   ///   10 bits.
   pub map_y: u16,
 
   /// Misc data.
   ///
   /// * Saving: The full range is supported
-  /// * Loading: Attempts to parse a `u16`, 0 on failure.
+  /// * Loading: Attempts to parse a `u16`, uses 0 on failure.
   pub misc: [u16; 4],
 
   /// The player's name, or something like it.
@@ -44,10 +44,10 @@ pub struct Sharecart {
   /// fewer ASCII characters (without line endings), you'll be totally fine.
   /// Otherwise there's some edge cases to worry about.
   ///
-  /// * Saving: Takes the first 1023 _bytes_, then lossy re-parses the bytes as
-  ///   chars and filters out any `'\u{0FFFD}'`, `'\r'`, and `'\n'`.
-  /// * Loading: Performs a similar contortion, where the first 1023 bytes are
-  ///   taken, lossy parsed for utf8, filtered, and then that result is kept.
+  /// * Saving: Filters out any `'\r'`, and `'\n'`, takes the first 1023 _bytes_
+  ///   of what's left, lossy re-parses as utf-8 to make sure there was no
+  ///   partial byte sequences at the end, and then strips any `'\u{0FFFD}'`.
+  /// * Loading: Same as with saving.
   pub player_name: String,
 
   /// The eight switches.
@@ -67,6 +67,11 @@ impl Sharecart {
   /// field. If the string somehow can't even be parsed at all then you'll get
   /// the default value in every field. Field names ignore capitalization
   /// differences.
+  ///
+  /// **Note:** the contents of the `o_o.ini` file might not be valid utf-8, so
+  /// as you read it from disk to pass into this function you'll have to decide
+  /// how you want to handle that possibility. I'd suggest you use
+  /// `String::from_utf8_lossy`, but it's up to you.
   ///
   /// ```rust
   /// use sharecart1000::Sharecart;
@@ -121,11 +126,8 @@ impl Sharecart {
                 sc.misc[3] = v.parse::<u16>().unwrap_or(0);
               }
               "playername" => {
-                let byte_vec: Vec<u8> = v.bytes().take(1024).collect();
-                sc.player_name = String::from_utf8_lossy(&byte_vec)
-                  .chars()
-                  .filter(|&c| c != '\u{0FFFD}' && c != '\r' && c != '\n')
-                  .collect();
+                let byte_vec: Vec<u8> = v.bytes().filter(|&b| b != b'\r' || b != b'\n').take(1023).collect();
+                sc.player_name = String::from_utf8_lossy(&byte_vec).chars().filter(|&c| c != '\u{0FFFD}').collect();
               }
               "switch0" => {
                 sc.switch[0] = v.to_lowercase() == "true";
@@ -166,9 +168,12 @@ impl Sharecart {
   ///
   /// The string includes the "[Main]" section tag and other proper `ini`
   /// formatting, so that you can completely replace the current `o_o.ini`
-  /// contents with this new string when saving the game. Lines are always
-  /// separated by just `'\n'`, which is is the most cross-platform way to
-  /// handle line-endings while also being consistent.
+  /// contents with this new string when saving the game.
+  ///
+  /// Lines are **always** separated by the `'\n'` character, even on Windows.
+  /// If you would like to use the "\r\n" windows-style line break sequence
+  /// instead, please use the `replace` method on the output string (eg:
+  /// `sc.to_string().replace("\n", "\r\n")`).
   ///
   /// ```rust
   /// use sharecart1000::Sharecart;
@@ -202,9 +207,9 @@ impl Sharecart {
       s.push_str(&format!("Misc{}={}\n", i, self.misc[i]));
     }
     s.push_str("PlayerName=");
-    let byte_vec: Vec<u8> = self.player_name.bytes().take(1023).collect();
+    let byte_vec: Vec<u8> = self.player_name.bytes().filter(|&b| b != b'\r' || b != b'\n').take(1023).collect();
     for ch in String::from_utf8_lossy(&byte_vec).chars() {
-      if ch == '\u{0FFFD}' || ch == '\r' || ch == '\n' {
+      if ch == '\u{0FFFD}' {
         continue;
       }
       s.push(ch);
