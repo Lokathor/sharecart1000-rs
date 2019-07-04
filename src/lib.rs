@@ -6,11 +6,16 @@
 //!
 //! See their [about page](http://alts.github.io/sharecart.lua/) for more info.
 
+#![no_std]
 #![forbid(missing_debug_implementations)]
 #![forbid(missing_docs)]
 #![forbid(unsafe_code)]
 
 extern crate ini;
+
+extern crate alloc;
+
+use alloc::{format, string::String, vec::Vec};
 
 /// This is your Sharecart data, in a rusty form.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -126,8 +131,15 @@ impl Sharecart {
                 sc.misc[3] = v.parse::<u16>().unwrap_or(0);
               }
               "playername" => {
-                let byte_vec: Vec<u8> = v.bytes().filter(|&b| b != b'\r' || b != b'\n').take(1023).collect();
-                sc.player_name = String::from_utf8_lossy(&byte_vec).chars().filter(|&c| c != '\u{0FFFD}').collect();
+                let byte_vec: Vec<u8> = v
+                  .bytes()
+                  .filter(|&b| b != b'\r' || b != b'\n')
+                  .take(1023)
+                  .collect();
+                sc.player_name = String::from_utf8_lossy(&byte_vec)
+                  .chars()
+                  .filter(|&c| c != '\u{0FFFD}')
+                  .collect();
               }
               "switch0" => {
                 sc.switch[0] = v.to_lowercase() == "true";
@@ -207,7 +219,12 @@ impl Sharecart {
       s.push_str(&format!("Misc{}={}\n", i, self.misc[i]));
     }
     s.push_str("PlayerName=");
-    let byte_vec: Vec<u8> = self.player_name.bytes().filter(|&b| b != b'\r' || b != b'\n').take(1023).collect();
+    let byte_vec: Vec<u8> = self
+      .player_name
+      .bytes()
+      .filter(|&b| b != b'\r' || b != b'\n')
+      .take(1023)
+      .collect();
     for ch in String::from_utf8_lossy(&byte_vec).chars() {
       if ch == '\u{0FFFD}' {
         continue;
@@ -216,7 +233,11 @@ impl Sharecart {
     }
     s.push('\n');
     for i in 0..8 {
-      s.push_str(&format!("Switch{}={}\n", i, if self.switch[i] { "TRUE" } else { "FALSE" }));
+      s.push_str(&format!(
+        "Switch{}={}\n",
+        i,
+        if self.switch[i] { "TRUE" } else { "FALSE" }
+      ));
     }
 
     s
@@ -239,7 +260,7 @@ fn test_sharecart_10bit_safe() {
 fn test_sharecart_player_name_safe() {
   let mut sc = Sharecart::default();
 
-  sc.player_name = "\r\n".to_string();
+  sc.player_name = String::from("\r\n");
   assert_eq!(Sharecart::default(), Sharecart::from_str(sc.to_string()));
 
   sc.player_name = "x".repeat(2_000);
