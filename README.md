@@ -1,4 +1,4 @@
-[![License:CC0](https://img.shields.io/badge/License-CC0-brightgreen.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+<!-- TODO: Zlib license link here -->
 [![CratesIO](https://img.shields.io/crates/v/sharecart1000.svg)](https://crates.io/crates/sharecart1000)
 [![Build status](https://ci.appveyor.com/api/projects/status/yl5r0fqpaaw8bea6?svg=true)](https://ci.appveyor.com/project/Lokathor/sharecart1000-rs)
 [![TravisCI](https://travis-ci.org/Lokathor/sharecart1000-rs.svg?branch=master)](https://travis-ci.org/Lokathor/sharecart1000-rs)
