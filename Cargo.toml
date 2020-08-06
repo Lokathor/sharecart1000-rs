@@ -6,7 +6,7 @@ repository = "https://github.com/Lokathor/sharecart1000-rs"
 readme = "README.md"
 keywords = ["sharecart", "sharecart1000"]
 description = "For use with the Sharecart1000 system."
-license = "Zlib"
+license = "Zlib OR Apache-2.0 OR MIT"
 
 [badges]
 appveyor = { repository = "https://ci.appveyor.com/project/Lokathor/sharecart1000-rs" }
