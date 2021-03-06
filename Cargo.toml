@@ -8,9 +8,5 @@ keywords = ["sharecart", "sharecart1000"]
 description = "For use with the Sharecart1000 system."
 license = "Zlib OR Apache-2.0 OR MIT"
 
-[badges]
-appveyor = { repository = "https://ci.appveyor.com/project/Lokathor/sharecart1000-rs" }
-travis-ci = { repository = "https://travis-ci.org/Lokathor/sharecart1000-rs" }
-
 [dependencies]
 rust-ini = "0.11"
